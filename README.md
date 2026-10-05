@@ -9,7 +9,7 @@ browser, so files never leave the device.
 | .doc (Word 97-2003) | Full text without formatting (built-in reader) |
 | .txt, .md, .log, .csv | Text exactly as written (UTF-8, UTF-16 and Latin-1 detected) |
 
-Reading tools: text size, serif/sans, light/dark, find-in-document, and a
+Reading tools: text size, a soft rounded or serif typeface, light/dark, find-in-document, and a
 "recently opened" list kept on the device.
 
 ## Mobile app (iOS and Android)
@@ -21,6 +21,11 @@ runs as a native app. App id: `com.superduty335.pocketreader`.
 latest run under the repo's **Actions** tab, download `pocket-reader-android`,
 unzip it and open `app-debug.apk` on your phone (allow installs from your browser
 or Files app when asked).
+
+**Open files from other apps:** the app registers for .docx, .doc and .txt.
+On Android, open a file from Files, Gmail or Drive, pick Pocket Reader and tap
+*Always* to make it the default. On iPhone, use *Share* or *Open in* and pick
+Pocket Reader (iOS doesn't let you change the default app for documents).
 
 **Build locally:**
 

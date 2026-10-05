@@ -1,6 +1,6 @@
 <title>Pocket Reader</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Nunito:wght@400..700&display=swap">
 <style>
 /* Layout: one reading column under a sticky toolbar; the document is the page. */
 :root {
@@ -15,7 +15,8 @@
   --mark-on: #ffb640;
   --shadow: 0 1px 2px rgba(20, 35, 60, .06), 0 6px 24px rgba(20, 35, 60, .06);
   --font-doc: "Literata", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  --font-ui: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-soft: "Nunito", "Nunito Variable", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-ui: "Nunito", "Nunito Variable", ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --doc-size: 18px;
 }
 @media (prefers-color-scheme: dark) {
@@ -82,8 +83,8 @@ main { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 16
   background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
   padding: clamp(20px, 5vw, 48px);
 }
-.doc { font-family: var(--font-doc); font-size: var(--doc-size); line-height: 1.6; overflow-wrap: break-word; max-width: 66ch; margin: 0 auto; }
-.doc.sans { font-family: var(--font-ui); }
+.doc { font-family: var(--font-soft); font-size: var(--doc-size); line-height: 1.6; overflow-wrap: break-word; max-width: 66ch; margin: 0 auto; }
+.doc.serif { font-family: var(--font-doc); }
 .doc > :first-child { margin-top: 0; }
 .doc h1, .doc h2, .doc h3, .doc h4 { line-height: 1.25; text-wrap: balance; margin: 1.4em 0 .5em; }
 .doc h1 { font-size: 1.6em; } .doc h2 { font-size: 1.3em; } .doc h3 { font-size: 1.12em; }
@@ -142,8 +143,8 @@ main { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 16
     <label for="size">Size</label>
     <input type="range" id="size" min="13" max="30" step="1" value="18">
     <div class="seg" role="group" aria-label="Typeface">
-      <button id="f-serif" aria-pressed="true">Serif</button>
-      <button id="f-sans" aria-pressed="false">Sans</button>
+      <button id="f-soft" aria-pressed="true">Soft</button>
+      <button id="f-serif" aria-pressed="false">Serif</button>
     </div>
     <div class="seg" role="group" aria-label="Theme">
       <button id="t-auto" aria-pressed="true">Auto</button>
@@ -415,21 +416,22 @@ function toggle(btn, panel) {
 $("btn-find").onclick = () => { if (toggle($("btn-find"), $("find-panel"))) $("q").focus(); runFind(); };
 $("btn-view").onclick = () => toggle($("btn-view"), $("view-panel"));
 
-const prefs = Object.assign({ size: 18, face: "serif", theme: "auto" }, store.get("prefs", {}));
+const prefs = Object.assign({ size: 18, face: "soft", theme: "auto" }, store.get("prefs", {}));
+if (prefs.face !== "serif") prefs.face = "soft";
 function applyPrefs() {
   document.documentElement.style.setProperty("--doc-size", prefs.size + "px");
   $("size").value = prefs.size;
-  docEl.classList.toggle("sans", prefs.face === "sans");
+  docEl.classList.toggle("serif", prefs.face === "serif");
+  $("f-soft").setAttribute("aria-pressed", prefs.face === "soft");
   $("f-serif").setAttribute("aria-pressed", prefs.face === "serif");
-  $("f-sans").setAttribute("aria-pressed", prefs.face === "sans");
   if (prefs.theme === "auto") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", prefs.theme);
   ["auto", "light", "dark"].forEach(t => $("t-" + t).setAttribute("aria-pressed", prefs.theme === t));
   store.set("prefs", prefs);
 }
 $("size").oninput = e => { prefs.size = +e.target.value; applyPrefs(); };
+$("f-soft").onclick = () => { prefs.face = "soft"; applyPrefs(); };
 $("f-serif").onclick = () => { prefs.face = "serif"; applyPrefs(); };
-$("f-sans").onclick = () => { prefs.face = "sans"; applyPrefs(); };
 ["auto", "light", "dark"].forEach(t => $("t-" + t).onclick = () => { prefs.theme = t; applyPrefs(); });
 
 /* opening */
@@ -453,6 +455,26 @@ const SAMPLE = `<h2>Welcome to Pocket Reader</h2>
 <li>The magnifier finds words in the document and jumps between matches.</li>
 <li>Files you open are listed under <em>Recently opened</em> on this device so you can get back to them.</li></ul>
 <p>Your files never leave your phone. Everything is read right here in the browser.</p>`;
+/* files handed over by other apps ("Open with" on Android, "Open in" on iPhone) */
+const Cap = window.Capacitor;
+if (Cap && Cap.isNativePlatform && Cap.isNativePlatform()) {
+  const App = Cap.registerPlugin("App"), Filesystem = Cap.registerPlugin("Filesystem");
+  const openUri = async url => {
+    if (!url || !/^(content|file):/i.test(url)) return;
+    try {
+      const { data } = await Filesystem.readFile({ path: url });
+      const bin = atob(data), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      let name = "";
+      try { name = (await Filesystem.stat({ path: url })).name || ""; } catch {}
+      if (!name) { const last = decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() || ""); if (/\.[a-z0-9]{2,5}$/i.test(last)) name = last; }
+      openFile({ name: name || "Document", arrayBuffer: async () => bytes.buffer });
+    } catch { fail("That file couldn't be opened from the other app. Try opening it with the Open file button."); }
+  };
+  App.addListener("appUrlOpen", e => openUri(e.url));
+  App.getLaunchUrl().then(r => r && openUri(r.url)).catch(() => {});
+}
+
 applyPrefs();
 renderRecent();
 show({ name: "Getting started", kind: "DOCX", html: SAMPLE, sample: true, save: false });
