@@ -1,0 +1,481 @@
+<title>Pocket Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Nunito:wght@400..700&display=swap">
+<style>
+/* Layout: one reading column under a sticky toolbar; the document is the page. */
+:root {
+  --bg: #f3f5f7;
+  --paper: #ffffff;
+  --ink: #1b2430;
+  --muted: #5d6877;
+  --line: #d9dfe6;
+  --accent: #1f5fae;
+  --accent-ink: #ffffff;
+  --mark: #ffe58a;
+  --mark-on: #ffb640;
+  --shadow: 0 1px 2px rgba(20, 35, 60, .06), 0 6px 24px rgba(20, 35, 60, .06);
+  --font-doc: "Literata", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-soft: "Nunito", "Nunito Variable", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-ui: "Nunito", "Nunito Variable", ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --doc-size: 18px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161c; --paper: #1a2029; --ink: #e3e8ee; --muted: #9aa6b4; --line: #2c3540;
+    --accent: #7fb0f0; --accent-ink: #0d1520; --mark: #6b5a12; --mark-on: #a8741a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161c; --paper: #1a2029; --ink: #e3e8ee; --muted: #9aa6b4; --line: #2c3540;
+  --accent: #7fb0f0; --accent-ink: #0d1520; --mark: #6b5a12; --mark-on: #a8741a;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 var(--font-ui); -webkit-text-size-adjust: 100%;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.bar-inner {
+  max-width: 760px; margin: 0 auto; padding: 10px 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.brand { font-weight: 600; letter-spacing: .01em; margin-right: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand svg { flex: none; }
+.icon-btn {
+  width: 40px; height: 40px; display: grid; place-items: center;
+  border: 1px solid var(--line); background: var(--paper); border-radius: 10px;
+}
+.icon-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.open-btn {
+  height: 40px; padding: 0 16px; border: 0; border-radius: 10px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.panel { max-width: 760px; margin: 0 auto; padding: 0 16px 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.panel label { font-size: 13px; color: var(--muted); }
+.search { flex: 1 1 120px; min-width: 0; height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--paper); height: 36px; padding: 0 12px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+input[type=range] { accent-color: var(--accent); width: 130px; }
+
+main { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 48px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin: 4px 0 12px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.meta h1 { flex-basis: 100%; margin: 0; font-size: 20px; line-height: 1.25; color: var(--ink); text-wrap: balance; overflow-wrap: anywhere; }
+.chip { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--ink); }
+.chip.sample { border-color: var(--accent); color: var(--accent); }
+
+.paper {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+  padding: clamp(20px, 5vw, 48px);
+}
+.doc { font-family: var(--font-soft); font-size: var(--doc-size); line-height: 1.6; overflow-wrap: break-word; max-width: 66ch; margin: 0 auto; }
+.doc.serif { font-family: var(--font-doc); }
+.doc > :first-child { margin-top: 0; }
+.doc h1, .doc h2, .doc h3, .doc h4 { line-height: 1.25; text-wrap: balance; margin: 1.4em 0 .5em; }
+.doc h1 { font-size: 1.6em; } .doc h2 { font-size: 1.3em; } .doc h3 { font-size: 1.12em; }
+.doc p { margin: 0 0 .85em; }
+.doc img { max-width: 100%; height: auto; }
+.doc a { color: var(--accent); }
+.doc .tbl { overflow-x: auto; margin: 1em 0; }
+.doc table { border-collapse: collapse; font-size: .9em; }
+.doc td, .doc th { border: 1px solid var(--line); padding: 6px 10px; vertical-align: top; }
+.doc td p:last-child, .doc th p:last-child { margin: 0; }
+.doc pre.txt { font: inherit; white-space: pre-wrap; margin: 0; tab-size: 4; }
+.doc.mono pre.txt { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .85em; }
+.doc mark { background: var(--mark); color: inherit; border-radius: 2px; }
+.doc mark.on { background: var(--mark-on); }
+
+.notice { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); font-size: 14px; color: var(--muted); }
+.notice.err { border-color: #c4473a; color: var(--ink); }
+
+.recent { margin-top: 28px; }
+.recent h2 { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.recent ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.recent button { width: 100%; text-align: left; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.recent .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent .when { color: var(--muted); font-size: 12px; }
+
+.drop { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 3px dashed var(--accent); font-weight: 600; font-size: 18px; }
+@media (max-width: 420px) { .open-btn span { display: none; } .open-btn { padding: 0 12px; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<header class="bar">
+  <div class="bar-inner">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 2.5h8l5 5V21a.5.5 0 0 1-.5.5h-12A.5.5 0 0 1 6 21z" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M14 2.5V8h5M9 12h7M9 15h7M9 18h4" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+      Pocket Reader
+    </div>
+    <button class="icon-btn" id="btn-find" aria-pressed="false" aria-label="Find in document" title="Find">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2" fill="none"/><path d="M16 16l5 5" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-view" aria-pressed="false" aria-label="Text settings" title="Text settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><text x="2" y="18" font-size="15" font-family="Georgia,serif" fill="currentColor">A</text><text x="13" y="18" font-size="10" font-family="Georgia,serif" fill="currentColor">a</text></svg>
+    </button>
+    <button class="open-btn" id="btn-open">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4"/></svg>
+      <span>Open file</span>
+    </button>
+    <input type="file" id="file" hidden accept=".docx,.doc,.txt,.text,.md,.log,.csv,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+  </div>
+  <div class="panel" id="find-panel" hidden>
+    <input class="search" id="q" type="search" placeholder="Find in document" autocomplete="off" enterkeyhint="search">
+    <span class="count" id="count"></span>
+    <button class="icon-btn" id="prev" aria-label="Previous match">&#8593;</button>
+    <button class="icon-btn" id="next" aria-label="Next match">&#8595;</button>
+  </div>
+  <div class="panel" id="view-panel" hidden>
+    <label for="size">Size</label>
+    <input type="range" id="size" min="13" max="30" step="1" value="18">
+    <div class="seg" role="group" aria-label="Typeface">
+      <button id="f-soft" aria-pressed="true">Soft</button>
+      <button id="f-serif" aria-pressed="false">Serif</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button id="t-auto" aria-pressed="true">Auto</button>
+      <button id="t-light" aria-pressed="false">Light</button>
+      <button id="t-dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="notice"></div>
+  <div class="meta" id="meta"></div>
+  <article class="paper"><div class="doc" id="doc"></div></article>
+  <section class="recent" id="recent" hidden>
+    <h2>Recently opened on this device</h2>
+    <ul id="recent-list"></ul>
+  </section>
+</main>
+<div class="drop" id="drop" hidden>Drop a .docx, .doc or .txt file</div>
+
+<!--MAMMOTH-->
+<script>
+/* ---------- .doc (Word 97-2003) text extraction ---------- */
+// Minimal OLE compound-file reader plus the Word piece table. Recovers the
+// document text (no formatting), which covers the common "just let me read it" case.
+function readCFB(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  if (dv.getUint32(0, true) !== 0xE011CFD0 || dv.getUint32(4, true) !== 0xE11AB1A1) throw new Error("not-cfb");
+  const secSize = 1 << dv.getUint16(0x1E, true), miniSize = 1 << dv.getUint16(0x20, true);
+  const nFat = dv.getUint32(0x2C, true), dirStart = dv.getUint32(0x30, true);
+  const miniCutoff = dv.getUint32(0x38, true), miniFatStart = dv.getUint32(0x3C, true);
+  let difatSec = dv.getUint32(0x44, true);
+  const off = s => (s + 1) * secSize;
+  const fatSecs = [];
+  for (let i = 0; i < 109 && fatSecs.length < nFat; i++) fatSecs.push(dv.getUint32(0x4C + i * 4, true));
+  let guard = 0;
+  while (fatSecs.length < nFat && difatSec < 0xFFFFFFFA && guard++ < 1e5) {
+    const o = off(difatSec), per = secSize / 4 - 1;
+    for (let i = 0; i < per && fatSecs.length < nFat; i++) fatSecs.push(dv.getUint32(o + i * 4, true));
+    difatSec = dv.getUint32(o + per * 4, true);
+  }
+  const fat = [];
+  for (const s of fatSecs) { const o = off(s); for (let i = 0; i < secSize / 4; i++) fat.push(o + i * 4 + 4 <= buf.byteLength ? dv.getUint32(o + i * 4, true) : 0xFFFFFFFE); }
+  const chain = (start, table) => { const out = []; let s = start, n = 0; while (s < 0xFFFFFFFA && n++ < 1e6) { out.push(s); s = table[s]; } return out; };
+  const readBig = start => { const secs = chain(start, fat), out = new Uint8Array(secs.length * secSize); secs.forEach((s, i) => out.set(u8.subarray(off(s), off(s) + secSize), i * secSize)); return out; };
+  const dir = readBig(dirStart), ddv = new DataView(dir.buffer), entries = [];
+  for (let o = 0; o + 128 <= dir.length; o += 128) {
+    const nameLen = ddv.getUint16(o + 0x40, true); let name = "";
+    for (let i = 0; i < Math.max(0, nameLen / 2 - 1); i++) name += String.fromCharCode(ddv.getUint16(o + i * 2, true));
+    entries.push({ name, type: dir[o + 0x42], start: ddv.getUint32(o + 0x74, true), size: ddv.getUint32(o + 0x78, true) });
+  }
+  const root = entries.find(e => e.type === 5);
+  const miniStream = root ? readBig(root.start) : new Uint8Array(0);
+  let miniFat = [];
+  if (miniFatStart < 0xFFFFFFFA) { const m = readBig(miniFatStart), mdv = new DataView(m.buffer); for (let i = 0; i < m.length / 4; i++) miniFat.push(mdv.getUint32(i * 4, true)); }
+  return name => {
+    const e = entries.find(x => x.type === 2 && x.name === name);
+    if (!e) return null;
+    if (e.size < miniCutoff) {
+      const secs = chain(e.start, miniFat), out = new Uint8Array(secs.length * miniSize);
+      secs.forEach((s, i) => out.set(miniStream.subarray(s * miniSize, (s + 1) * miniSize), i * miniSize));
+      return out.subarray(0, e.size);
+    }
+    return readBig(e.start).subarray(0, e.size);
+  };
+}
+
+function docToText(buf) {
+  const get = readCFB(buf);
+  const wd = get("WordDocument");
+  if (!wd) throw new Error("This file isn't a Word document.");
+  const w = new DataView(wd.buffer, wd.byteOffset, wd.byteLength);
+  if (w.getUint16(0, true) !== 0xA5EC) throw new Error("This .doc uses a format older than Word 97, which can't be read here.");
+  const flags = w.getUint16(0x0A, true);
+  if (flags & 0x0100) throw new Error("This document is password-protected, so it can't be opened here.");
+  const table = get(flags & 0x0200 ? "1Table" : "0Table");
+  const ccpText = w.getInt32(0x4C, true);
+  const fcClx = w.getUint32(0x1A2, true), lcbClx = w.getUint32(0x1A6, true);
+  const cp1252 = new TextDecoder("windows-1252"), u16 = new TextDecoder("utf-16le");
+  let text = "";
+  if (table && lcbClx) {
+    const t = new DataView(table.buffer, table.byteOffset, table.byteLength);
+    let p = fcClx;
+    while (table[p] === 0x01) p += 3 + t.getUint16(p + 1, true);  // skip Prc blocks
+    if (table[p] !== 0x02) throw new Error("bad-clx");
+    const lcb = t.getUint32(p + 1, true); p += 5;
+    const n = (lcb - 4) / 12;
+    for (let i = 0; i < n; i++) {
+      const cpStart = t.getUint32(p + i * 4, true), cpEnd = t.getUint32(p + (i + 1) * 4, true);
+      if (cpStart >= ccpText) break;
+      const len = Math.min(cpEnd, ccpText) - cpStart;
+      let fc = t.getUint32(p + (n + 1) * 4 + i * 8 + 2, true);
+      if (fc & 0x40000000) { fc = (fc & 0x3FFFFFFF) / 2; text += cp1252.decode(wd.subarray(fc, fc + len)); }
+      else text += u16.decode(wd.subarray(fc, fc + len * 2));
+    }
+  } else {
+    const fcMin = w.getUint32(0x18, true);
+    text = cp1252.decode(wd.subarray(fcMin, fcMin + ccpText));
+  }
+  // Fields: drop the instruction (0x13..0x14), keep the displayed result (0x14..0x15).
+  let out = "", depth = 0, hide = [];
+  for (const ch of text) {
+    const c = ch.charCodeAt(0);
+    if (c === 0x13) { depth++; hide.push(true); continue; }
+    if (c === 0x14) { if (depth) hide[hide.length - 1] = false; continue; }
+    if (c === 0x15) { if (depth) { depth--; hide.pop(); } continue; }
+    if (hide.some(Boolean)) continue;
+    if (c === 0x0D || c === 0x0B || c === 0x0C) out += "\n";
+    else if (c === 0x07) out += "\t";
+    else if (c === 0x1E) out += "-";
+    else if (c === 0x09 || c >= 0x20) { if (c !== 0x1F) out += ch; }
+  }
+  return out.replace(/\t\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/* ---------- text decoding ---------- */
+function decodeText(buf) {
+  const b = new Uint8Array(buf);
+  if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder("utf-16le").decode(b.subarray(2));
+  if (b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder("utf-16be").decode(b.subarray(2));
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(b).replace(/^﻿/, ""); }
+  catch { return new TextDecoder("windows-1252").decode(b); }
+}
+
+/* ---------- app ---------- */
+const $ = id => document.getElementById(id);
+const docEl = $("doc");
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("pr:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("pr:" + k, JSON.stringify(v)); return true; } catch { return false; } }
+};
+
+function textToHtml(text, name) {
+  return '<pre class="txt">' + esc(text) + "</pre>";
+}
+function paragraphsHtml(text) {
+  return text.split(/\n/).map(l => l.trim() ? "<p>" + esc(l).replace(/\t/g, " &nbsp; ") + "</p>" : "").join("");
+}
+
+function show({ name, kind, html, note, sample, save = true }) {
+  docEl.innerHTML = html;
+  docEl.querySelectorAll("table").forEach(t => { const w = document.createElement("div"); w.className = "tbl"; t.replaceWith(w); w.appendChild(t); });
+  docEl.classList.toggle("mono", kind === "TXT" && /\.(log|csv)$/i.test(name));
+  const words = (docEl.textContent.match(/\S+/g) || []).length;
+  const mins = Math.max(1, Math.round(words / 230));
+  $("meta").innerHTML = "<h1>" + esc(name) + "</h1>" +
+    '<span class="chip' + (sample ? " sample" : "") + '">' + (sample ? "Sample" : kind) + "</span>" +
+    "<span>" + words.toLocaleString() + " words</span><span>about " + mins + " min read</span>";
+  $("notice").innerHTML = note ? '<p class="notice">' + note + "</p>" : "";
+  document.title = sample ? "Pocket Reader" : name + " · Pocket Reader";
+  runFind();
+  window.scrollTo(0, 0);
+  if (save && !sample) remember(name, kind, html, note);
+}
+function fail(msg) { $("notice").innerHTML = '<p class="notice err">' + esc(msg) + "</p>"; }
+
+async function openFile(file) {
+  const name = file.name || "Untitled";
+  const ext = (name.match(/\.([^.]+)$/) || [, ""])[1].toLowerCase();
+  let buf;
+  try { buf = await file.arrayBuffer(); } catch { return fail("That file couldn't be read. Try opening it again."); }
+  const head = new Uint8Array(buf.slice(0, 8));
+  const isZip = head[0] === 0x50 && head[1] === 0x4B;
+  const isCfb = head[0] === 0xD0 && head[1] === 0xCF && head[2] === 0x11 && head[3] === 0xE0;
+  try {
+    if (isZip || ext === "docx") {
+      if (!window.mammoth) return fail("The Word reader didn't load. Check your connection and reload the page.");
+      const r = await mammoth.convertToHtml({ arrayBuffer: buf });
+      if (!r.value.trim()) return fail("This document has no text that can be shown.");
+      show({ name, kind: "DOCX", html: r.value });
+    } else if (isCfb || ext === "doc") {
+      if (!isCfb) {
+        // Some ".doc" files are really RTF, HTML or plain text saved with a .doc name.
+        const t = decodeText(buf);
+        if (/^\{\\rtf/.test(t)) return show({ name, kind: "DOC", html: paragraphsHtml(rtfToText(t)), note: "This file is RTF saved as .doc. Showing its text only." });
+        if (/<html|<body/i.test(t.slice(0, 2000))) return show({ name, kind: "DOC", html: sanitize(t) });
+        return show({ name, kind: "DOC", html: textToHtml(t) });
+      }
+      const text = docToText(buf);
+      if (!text) return fail("This document has no text that can be shown.");
+      show({ name, kind: "DOC", html: paragraphsHtml(text), note: "Older .doc files open as text only. Formatting, images and tables aren't shown." });
+    } else if (ext === "rtf") {
+      show({ name, kind: "RTF", html: paragraphsHtml(rtfToText(decodeText(buf))) });
+    } else {
+      show({ name, kind: "TXT", html: textToHtml(decodeText(buf)) });
+    }
+  } catch (e) {
+    fail(e && e.message && !/^(not-cfb|bad-clx)$/.test(e.message) && e.message.length < 140 ? e.message
+      : "This file couldn't be opened. It may be damaged, or saved in a format this app can't read.");
+  }
+}
+
+function rtfToText(s) {
+  return s.replace(/\\par[d]?/g, "\n").replace(/\{\\\*[^{}]*\}/g, "").replace(/\\'([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\[a-z]+-?\d* ?/gi, "").replace(/[{}]/g, "").trim();
+}
+function sanitize(html) {
+  const d = new DOMParser().parseFromString(html, "text/html");
+  d.querySelectorAll("script,style,iframe,object,embed,link,meta").forEach(n => n.remove());
+  d.querySelectorAll("*").forEach(n => [...n.attributes].forEach(a => { if (/^on/i.test(a.name) || /javascript:/i.test(a.value)) n.removeAttribute(a.name); }));
+  return d.body.innerHTML;
+}
+
+/* recent files (this device only) */
+function remember(name, kind, html, note) {
+  if (html.length > 1500000) return;
+  let list = store.get("recent", []).filter(r => r.name !== name);
+  list.unshift({ name, kind, html, note, at: Date.now() });
+  list = list.slice(0, 6);
+  while (list.length && !store.set("recent", list)) list.pop();
+  renderRecent();
+}
+function renderRecent() {
+  const list = store.get("recent", []);
+  $("recent").hidden = !list.length;
+  $("recent-list").innerHTML = list.map((r, i) =>
+    '<li><button data-i="' + i + '"><span class="chip">' + esc(r.kind) + '</span><span class="nm">' + esc(r.name) +
+    '</span><span class="when">' + new Date(r.at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) + "</span></button></li>").join("");
+}
+$("recent-list").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]"); if (!b) return;
+  const r = store.get("recent", [])[+b.dataset.i]; if (r) show({ ...r, save: true });
+});
+
+/* find */
+let hits = [], cur = -1;
+function clearMarks() {
+  docEl.querySelectorAll("mark").forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+  docEl.normalize();
+}
+function runFind() {
+  clearMarks(); hits = []; cur = -1;
+  const q = $("q").value.trim();
+  if (!q || $("find-panel").hidden) { $("count").textContent = ""; return; }
+  const ql = q.toLowerCase(), walker = document.createTreeWalker(docEl, NodeFilter.SHOW_TEXT), nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const t = node.nodeValue, tl = t.toLowerCase(); let i = tl.indexOf(ql); if (i < 0) continue;
+    const frag = document.createDocumentFragment(); let last = 0;
+    while (i >= 0) {
+      frag.append(t.slice(last, i));
+      const m = document.createElement("mark"); m.textContent = t.slice(i, i + q.length); frag.append(m); hits.push(m);
+      last = i + q.length; i = tl.indexOf(ql, last);
+    }
+    frag.append(t.slice(last)); node.replaceWith(frag);
+  }
+  if (hits.length) go(0); else $("count").textContent = "No matches";
+}
+function go(i) {
+  if (!hits.length) return;
+  if (cur >= 0) hits[cur].classList.remove("on");
+  cur = (i + hits.length) % hits.length;
+  hits[cur].classList.add("on");
+  hits[cur].scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  $("count").textContent = (cur + 1) + " of " + hits.length;
+}
+let findTimer;
+$("q").addEventListener("input", () => { clearTimeout(findTimer); findTimer = setTimeout(runFind, 200); });
+$("q").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(cur + (e.shiftKey ? -1 : 1)); } });
+$("next").onclick = () => go(cur + 1);
+$("prev").onclick = () => go(cur - 1);
+
+/* panels and settings */
+function toggle(btn, panel) {
+  const open = panel.hidden; panel.hidden = !open; btn.setAttribute("aria-pressed", open);
+  return open;
+}
+$("btn-find").onclick = () => { if (toggle($("btn-find"), $("find-panel"))) $("q").focus(); runFind(); };
+$("btn-view").onclick = () => toggle($("btn-view"), $("view-panel"));
+
+const prefs = Object.assign({ size: 18, face: "soft", theme: "auto" }, store.get("prefs", {}));
+if (prefs.face !== "serif") prefs.face = "soft";
+function applyPrefs() {
+  document.documentElement.style.setProperty("--doc-size", prefs.size + "px");
+  $("size").value = prefs.size;
+  docEl.classList.toggle("serif", prefs.face === "serif");
+  $("f-soft").setAttribute("aria-pressed", prefs.face === "soft");
+  $("f-serif").setAttribute("aria-pressed", prefs.face === "serif");
+  if (prefs.theme === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", prefs.theme);
+  ["auto", "light", "dark"].forEach(t => $("t-" + t).setAttribute("aria-pressed", prefs.theme === t));
+  store.set("prefs", prefs);
+}
+$("size").oninput = e => { prefs.size = +e.target.value; applyPrefs(); };
+$("f-soft").onclick = () => { prefs.face = "soft"; applyPrefs(); };
+$("f-serif").onclick = () => { prefs.face = "serif"; applyPrefs(); };
+["auto", "light", "dark"].forEach(t => $("t-" + t).onclick = () => { prefs.theme = t; applyPrefs(); });
+
+/* opening */
+$("btn-open").onclick = () => $("file").click();
+$("file").onchange = e => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ""; };
+let dragDepth = 0;
+addEventListener("dragenter", e => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { dragDepth++; $("drop").hidden = false; } });
+addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("drop").hidden = true; } });
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("drop", e => { e.preventDefault(); dragDepth = 0; $("drop").hidden = true; const f = e.dataTransfer.files[0]; if (f) openFile(f); });
+
+/* sample shown until a file is opened */
+const SAMPLE = `<h2>Welcome to Pocket Reader</h2>
+<p>Tap <strong>Open file</strong> and pick a Word document or a text file from your phone, Files app, Google Drive, iCloud or email attachments.</p>
+<table><tr><th>File type</th><th>What you'll see</th></tr>
+<tr><td>.docx</td><td>Headings, bold and italic, lists, tables, links and pictures</td></tr>
+<tr><td>.doc (Word 97 to 2003)</td><td>The full text, without formatting</td></tr>
+<tr><td>.txt</td><td>The text exactly as written, with line breaks kept</td></tr></table>
+<h3>Reading tools</h3>
+<ul><li>The <strong>Aa</strong> button sets text size, typeface and light or dark mode.</li>
+<li>The magnifier finds words in the document and jumps between matches.</li>
+<li>Files you open are listed under <em>Recently opened</em> on this device so you can get back to them.</li></ul>
+<p>Your files never leave your phone. Everything is read right here in the browser.</p>`;
+/* files handed over by other apps ("Open with" on Android, "Open in" on iPhone) */
+const Cap = window.Capacitor;
+if (Cap && Cap.isNativePlatform && Cap.isNativePlatform()) {
+  const App = Cap.registerPlugin("App"), Filesystem = Cap.registerPlugin("Filesystem");
+  const openUri = async url => {
+    if (!url || !/^(content|file):/i.test(url)) return;
+    try {
+      const { data } = await Filesystem.readFile({ path: url });
+      const bin = atob(data), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      let name = "";
+      try { name = (await Filesystem.stat({ path: url })).name || ""; } catch {}
+      if (!name) { const last = decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() || ""); if (/\.[a-z0-9]{2,5}$/i.test(last)) name = last; }
+      openFile({ name: name || "Document", arrayBuffer: async () => bytes.buffer });
+    } catch { fail("That file couldn't be opened from the other app. Try opening it with the Open file button."); }
+  };
+  App.addListener("appUrlOpen", e => openUri(e.url));
+  App.getLaunchUrl().then(r => r && openUri(r.url)).catch(() => {});
+}
+
+applyPrefs();
+renderRecent();
+show({ name: "Getting started", kind: "DOCX", html: SAMPLE, sample: true, save: false });
+</script>
